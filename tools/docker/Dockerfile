@@ -72,6 +72,8 @@ RUN echo LIBBUILDER_CHECKOUT_REF=$LIBBUILDER_CHECKOUT_REF LIBBUILDER_CLONE_BRANC
     fi && \
     pip3 install --upgrade -r $LIBBUILDER_PATH/tools/config_editor/requirements.txt
 
+
+
 COPY entrypoint.sh $LIBBUILDER_PATH/entrypoint.sh
 
 WORKDIR /opt/esp/lib-builder
