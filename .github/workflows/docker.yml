@@ -10,7 +10,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/docker.yml"
-      - "tools/config_editor/**"
+      - "tools/config_editor/requirements.txt"
       - "tools/docker/**"
       - "!**.md"
 
