@@ -48,7 +48,7 @@ else
 fi
 
 echo "Current IDF commit: $IDF_COMMIT"
-echo "Latest IDF commit in $AR_REPO: $LATEST_LIBS_IDF"
+echo "Latest IDF commit in $AR_BRANCH of $AR_REPO: $LATEST_LIBS_IDF"
 
 AR_HAS_COMMIT=`if [ "$LATEST_LIBS_IDF" == "$IDF_COMMIT" ]; then echo "1"; else echo "0"; fi`
 AR_HAS_PR=`github_pr_exists "$AR_REPO" "$AR_NEW_BRANCH_NAME"`
