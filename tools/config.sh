@@ -109,7 +109,11 @@ function github_get_libs_idf(){ # github_get_libs_idf <repo-path> <branch-name> 
     local libs_version=""
 
     while [ "$libs_version" == "" ]; do
-        version_found=`curl -s -k -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" "https://api.github.com/repos/$repo_path/commits?sha=$branch_name&per_page=100&page=$page" | jq -r '.[].commit.message' | grep -Eo "$message_prefix [a-f0-9]{8}" | awk 'NR==1{print $NF}'`
+        # Get the latest commit message that matches the prefix and extract the hash from the last commit message
+        version_found=`curl -s -k -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" "https://api.github.com/repos/$repo_path/commits?sha=$branch_name&per_page=100&page=$page" | \
+            jq -r --arg prefix "$message_prefix" '[ .[] | select(.commit.message | test($prefix + " [a-f0-9]{8}")) ][0] | .commit.message' | \
+            grep -Eo "$message_prefix [a-f0-9]{8}" | \
+            awk 'END {print $NF}'`
         if [ ! "$version_found" == "" ] && [ ! "$version_found" == "null" ]; then
             libs_version=$version_found
         else
