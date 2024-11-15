@@ -103,12 +103,13 @@ function github_get_libs_idf(){ # github_get_libs_idf <repo-path> <branch-name> 
     local repo_path="$1"
     local branch_name="$2"
     local message_prefix="$3"
+    message_prefix=$(echo $message_prefix | sed 's/[]\/$*.^|[]/\\&/g') # Escape special characters
     local page=1
     local version_found=""
     local libs_version=""
 
     while [ "$libs_version" == "" ]; do
-        version_found=`curl -s -k -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" "https://api.github.com/repos/$repo_path/commits?sha=$branch_name&per_page=100&page=$page" | jq -r '.[].commit.message' | grep -E "$message_prefix [a-f0-9]{8}$" | awk 'NR==1{print $NF}'`
+        version_found=`curl -s -k -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" "https://api.github.com/repos/$repo_path/commits?sha=$branch_name&per_page=100&page=$page" | jq -r '.[].commit.message' | grep -Eo "$message_prefix [a-f0-9]{8}" | awk 'NR==1{print $NF}'`
         if [ ! "$version_found" == "" ] && [ ! "$version_found" == "null" ]; then
             libs_version=$version_found
         else
