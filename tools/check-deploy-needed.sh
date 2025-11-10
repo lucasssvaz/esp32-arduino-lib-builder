@@ -119,7 +119,7 @@ echo "LIBS_ASSET_ID: $LIBS_ASSET_ID"
 echo "LIBS_HAS_ASSET: $LIBS_HAS_ASSET"
 echo "DEPLOY_NEEDED: $DEPLOY_NEEDED"
 
-if [ ! -x $GITHUB_OUTPUT ]; then
+if [ -n "$GITHUB_OUTPUT" ]; then
 	echo "idf_commit=$IDF_COMMIT" >> "$GITHUB_OUTPUT"
 	echo "ar_branch=$AR_BRANCH" >> "$GITHUB_OUTPUT"
 	echo "ar_new_commit_message=$AR_NEW_COMMIT_MESSAGE" >> "$GITHUB_OUTPUT"
