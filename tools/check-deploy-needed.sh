@@ -55,8 +55,10 @@ echo "Latest IDF commit in $AR_BRANCH of $AR_REPO: $LATEST_LIBS_IDF"
 AR_HAS_COMMIT=`if [ "$LATEST_LIBS_IDF" == "$IDF_COMMIT" ]; then echo "1"; else echo "0"; fi`
 AR_HAS_PR=`github_pr_exists "$AR_REPO" "$AR_NEW_BRANCH_NAME"`
 
-LIBS_RELEASE_ID=`github_release_id "$AR_LIBS_REPO" "$LIBS_RELEASE_TAG"`
+LIBS_RELEASE_ID=`github_release_id "$AR_LIBS_REPO" "$LIBS_RELEASE_TAG" 2>&1 >/dev/null`
 LIBS_HAS_RELEASE=`if [ -n "$LIBS_RELEASE_ID" ]; then echo "1"; else echo "0"; fi`
+
+echo "DEBUG: Start of output sanitization"
 
 if [ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]; then
 	echo "Workflow dispatch event. Generating new libs."
