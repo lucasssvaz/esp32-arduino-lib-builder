@@ -214,7 +214,12 @@ function github_release_asset_id(){ # github_release_asset_id <repo-path> <relea
     local asset_id=""
 
     while [[ "$page" -le 5 ]]; do
-        local response=`curl -s -k -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" "https://api.github.com/repos/$repo_path/releases/$release_id/assets?per_page=100&page=$page"`
+        local response=$(curl -sf -H "Authorization: token $GITHUB_TOKEN" \
+                             -H "Accept: application/vnd.github.v3.raw+json" \
+                             "https://api.github.com/repos/$repo_path/releases/$release_id/assets?per_page=100&page=$page") || {
+            echo "Failed to fetch release assets from GitHub for $repo_path" >&2
+            exit 1
+        }
 
         if [[ -z "$response" || "$response" == "[]" ]]; then
             break
@@ -227,13 +232,15 @@ function github_release_asset_id(){ # github_release_asset_id <repo-path> <relea
         local release_asset=`echo "$response" | jq --arg release_file "$release_file" -r '.[] | select(.name == $release_file) | .id'`
         if [ ! "$release_asset" == "" ] && [ ! "$release_asset" == "null" ]; then
             asset_id=$release_asset
-            break
+            echo "$asset_id"
+            return 0
         fi
 
         page=$((page+1))
     done
 
-    echo "$asset_id"
+    echo "No asset found for $release_file" >&2
+    return 1
 }
 
 function github_release_asset_upload(){ # github_release_asset_upload <repo-path> <release-id> <release-file-name> <release-file-path>
