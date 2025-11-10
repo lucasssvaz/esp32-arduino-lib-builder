@@ -1,21 +1,22 @@
 #!/bin/bash
+# File is used as a source for other scripts, so we need to disable unused variable warnings
+# shellcheck disable=SC2034
 
-
-if [ -z $IDF_PATH ]; then
+if [ -z "$IDF_PATH" ]; then
     export IDF_PATH="$PWD/esp-idf"
 fi
 
-if [ -z $IDF_BRANCH ]; then
+if [ -z "$IDF_BRANCH" ]; then
     IDF_BRANCH="release/v5.5"
 fi
 
-if [ -z $AR_PR_TARGET_BRANCH ]; then
+if [ -z "$AR_PR_TARGET_BRANCH" ]; then
     AR_PR_TARGET_BRANCH="master"
 fi
 
-if [ -z $IDF_TARGET ]; then
+if [ -z "$IDF_TARGET" ]; then
     if [ -f sdkconfig ]; then
-        IDF_TARGET=`cat sdkconfig | grep CONFIG_IDF_TARGET= | cut -d'"' -f2`
+        IDF_TARGET=$(grep CONFIG_IDF_TARGET= sdkconfig | cut -d'"' -f2)
         if [ "$IDF_TARGET" = "" ]; then
             IDF_TARGET="esp32"
         fi
@@ -35,7 +36,7 @@ AR_LIBS_REPO="$AR_USER/esp32-arduino-lib-builder"
 AR_REPO_URL="https://github.com/$AR_REPO.git"
 IDF_REPO_URL="https://github.com/$IDF_REPO.git"
 AR_LIBS_REPO_URL="https://github.com/$AR_LIBS_REPO.git"
-if [ -n $GITHUB_TOKEN ]; then
+if [ -n "$GITHUB_TOKEN" ]; then
     AR_REPO_URL="https://$GITHUB_TOKEN@github.com/$AR_REPO.git"
     AR_LIBS_REPO_URL="https://$GITHUB_TOKEN@github.com/$AR_LIBS_REPO.git"
 fi
@@ -53,12 +54,14 @@ PIOARDUINO_SDK="FRAMEWORK_SDK_DIR, \"$IDF_TARGET\""
 TOOLS_JSON_OUT="$AR_TOOLS/esp32-arduino-libs"
 
 if [ -d "$IDF_PATH" ]; then
-    export IDF_COMMIT=$(git -C "$IDF_PATH" rev-parse --short HEAD)
-    export IDF_BRANCH=$(git -C "$IDF_PATH" symbolic-ref --short HEAD || git -C "$IDF_PATH" tag --points-at HEAD)
+    IDF_COMMIT=$(git -C "$IDF_PATH" rev-parse --short HEAD)
+    IDF_BRANCH=$(git -C "$IDF_PATH" symbolic-ref --short HEAD || git -C "$IDF_PATH" tag --points-at HEAD)
+    export IDF_COMMIT
+    export IDF_BRANCH
 fi
 
 function get_os(){
-    OSBITS=`uname -m`
+    OSBITS=$(uname -m)
     if [[ "$OSTYPE" == "linux"* ]]; then
         if [[ "$OSBITS" == "i686" ]]; then
             echo "linux32"
@@ -81,7 +84,7 @@ function get_os(){
     return 0
 }
 
-AR_OS=`get_os`
+AR_OS=$(get_os)
 
 export SED="sed"
 export SSTAT="stat -c %s"
@@ -103,17 +106,21 @@ function github_get_libs_idf(){ # github_get_libs_idf <repo-path> <branch-name> 
     local repo_path="$1"
     local branch_name="$2"
     local message_prefix="$3"
-    message_prefix=$(echo $message_prefix | sed 's/[]\/$*.^|[]/\\&/g') # Escape special characters
+    message_prefix=$(echo "$message_prefix" | sed 's/[]\/$*.^|[]/\\&/g') # Escape special characters
     local page=1
     local version_found=""
     local libs_version=""
 
     while [[ "$libs_version" == "" && "$page" -le 5 ]]; do
         # Get the latest commit message that matches the prefix and extract the hash from the last commit message
-        version_found=`curl -s -k -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" "https://api.github.com/repos/$repo_path/commits?sha=$branch_name&per_page=100&page=$page" | \
+        version_found=$( \
+            curl -s -k -H "Authorization: token $GITHUB_TOKEN" \
+                 -H "Accept: application/vnd.github.v3.raw+json" \
+                 "https://api.github.com/repos/$repo_path/commits?sha=$branch_name&per_page=100&page=$page" | \
             jq -r --arg prefix "$message_prefix" '[ .[] | select(.commit.message | test($prefix + " [a-f0-9]{8}")) ][0] | .commit.message' | \
             grep -Eo "$message_prefix [a-f0-9]{8}" | \
-            awk 'END {print $NF}'`
+            awk 'END {print $NF}'
+        )
         if [[ "$version_found" != "" && "$version_found" != "null" ]]; then
             libs_version=$version_found
         else
@@ -121,7 +128,7 @@ function github_get_libs_idf(){ # github_get_libs_idf <repo-path> <branch-name> 
         fi
     done
 
-    if [ ! "$libs_version" == "" ] && [ ! "$libs_version" == "null" ]; then echo $libs_version; else echo ""; fi
+    if [ ! "$libs_version" == "" ] && [ ! "$libs_version" == "null" ]; then echo "$libs_version"; else echo ""; fi
 }
 
 function github_commit_exists(){ #github_commit_exists <repo-path> <branch-name> <commit-message>
@@ -130,15 +137,17 @@ function github_commit_exists(){ #github_commit_exists <repo-path> <branch-name>
     local commit_message="$3"
     local page=1
     local commits_found=0
+    local response=""
+    local commits=""
 
     while [ "$page" -le 5 ]; do
-        local response=`curl -s -k -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" "https://api.github.com/repos/$repo_path/commits?sha=$branch_name&per_page=100&page=$page"`
+        response=$(curl -s -k -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" "https://api.github.com/repos/$repo_path/commits?sha=$branch_name&per_page=100&page=$page")
 
         if [[ -z "$response" || "$response" == "[]" ]]; then
             break
         fi
 
-        local commits=`echo "$response" | jq -r '.[].commit.message' | grep "$commit_message" | wc -l`
+        commits=$(echo "$response" | jq -r '.[].commit.message' | grep -c "$commit_message")
         if [ "$commits" -gt 0 ]; then
             commits_found=1
             break
@@ -147,15 +156,17 @@ function github_commit_exists(){ #github_commit_exists <repo-path> <branch-name>
         page=$((page+1))
     done
 
-    echo $commits_found
+    echo "$commits_found"
 }
 
 function github_last_commit(){ # github_last_commit <repo-path> <branch-name>
     local repo_path="$1"
     local branch_name="$2"
-    local commit=`curl -s -k -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" "https://api.github.com/repos/$repo_path/commits/heads/$branch_name" | jq -r '.sha'`
+    local commit=""
+
+    commit=$(curl -s -k -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" "https://api.github.com/repos/$repo_path/commits/heads/$branch_name" | jq -r '.sha')
     if [ ! "$commit" == "" ] && [ ! "$commit" == "null" ]; then
-        echo ${commit:0:8}
+        echo "${commit:0:8}"
     else
         echo ""
     fi
@@ -164,14 +175,18 @@ function github_last_commit(){ # github_last_commit <repo-path> <branch-name>
 function github_branch_exists(){ # github_branch_exists <repo-path> <branch-name>
     local repo_path="$1"
     local branch_name="$2"
-    local branch=`curl -s -k -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" "https://api.github.com/repos/$repo_path/branches/$branch_name" | jq -r '.name'`
+    local branch=""
+
+    branch=$(curl -s -k -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" "https://api.github.com/repos/$repo_path/branches/$branch_name" | jq -r '.name')
     if [ "$branch" == "$branch_name" ]; then echo 1; else echo 0; fi
 }
 
 function github_pr_exists(){ # github_pr_exists <repo-path> <branch-name>
     local repo_path="$1"
     local branch_name="$2"
-    local pr_num=`curl -s -k -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" "https://api.github.com/repos/$repo_path/pulls?head=$AR_USER:$branch_name&state=open" | jq -r '.[].number'`
+    local pr_num=""
+
+    pr_num=$(curl -s -k -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" "https://api.github.com/repos/$repo_path/pulls?head=$AR_USER:$branch_name&state=open" | jq -r '.[].number')
     if [ ! "$pr_num" == "" ] && [ ! "$pr_num" == "null" ]; then echo 1; else echo 0; fi
 }
 
@@ -180,12 +195,13 @@ function github_release_id() { # github_release_id <repo-path> <release-tag>
     local release_tag="$2"
     local page=1
     local release_id=""
+    local response=""
 
     while [[ "$page" -le 3 ]]; do
-        local response
-        response=$(curl -sf -H "Authorization: token $GITHUB_TOKEN" \
+        response=$(curl -s -k -H "Authorization: token $GITHUB_TOKEN" \
                           -H "Accept: application/vnd.github.v3.raw+json" \
-                          "https://api.github.com/repos/$repo_path/releases?per_page=100&page=$page") || {
+                          "https://api.github.com/repos/$repo_path/releases?per_page=100&page=$page") || \
+        {
             echo "Failed to fetch releases from GitHub for $repo_path" >&2
             exit 1
         }
@@ -212,11 +228,14 @@ function github_release_asset_id(){ # github_release_asset_id <repo-path> <relea
     local release_file="$3"
     local page=1
     local asset_id=""
+    local response=""
+    local release_asset=""
 
     while [[ "$page" -le 5 ]]; do
-        local response=$(curl -sf -H "Authorization: token $GITHUB_TOKEN" \
+        response=$(curl -s -k -H "Authorization: token $GITHUB_TOKEN" \
                              -H "Accept: application/vnd.github.v3.raw+json" \
-                             "https://api.github.com/repos/$repo_path/releases/$release_id/assets?per_page=100&page=$page") || {
+                             "https://api.github.com/repos/$repo_path/releases/$release_id/assets?per_page=100&page=$page") || \
+        {
             echo "Failed to fetch release assets from GitHub for $repo_path" >&2
             exit 1
         }
@@ -229,7 +248,7 @@ function github_release_asset_id(){ # github_release_asset_id <repo-path> <relea
         echo "DEBUG: Raw response for release assets:" >&2
         echo "$response" | head -n 20 >&2
 
-        local release_asset=`echo "$response" | jq --arg release_file "$release_file" -r '.[] | select(.name == $release_file) | .id'`
+        release_asset=$(echo "$response" | jq --arg release_file "$release_file" -r '.[] | select(.name == $release_file) | .id')
         if [ ! "$release_asset" == "" ] && [ ! "$release_asset" == "null" ]; then
             asset_id=$release_asset
             echo "$asset_id"
@@ -240,7 +259,7 @@ function github_release_asset_id(){ # github_release_asset_id <repo-path> <relea
     done
 
     echo "No asset found for $release_file" >&2
-    return 1
+    exit 1
 }
 
 function github_release_asset_upload(){ # github_release_asset_upload <repo-path> <release-id> <release-file-name> <release-file-path>
@@ -249,14 +268,16 @@ function github_release_asset_upload(){ # github_release_asset_upload <repo-path
     local release_file_name="$3"
     local release_file_path="$4"
     local file_extension="${release_file_name##*.}"
-    local release_asset=`curl -s -k -X POST -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" -H "Content-Type: application/$file_extension" --data-binary "@$release_file_path" "https://uploads.github.com/repos/$repo_path/releases/$release_id/assets?name=$release_file_name" | jq -r '.id'`
+    local release_asset=""
+
+    release_asset=$(curl -s -k -X POST -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" -H "Content-Type: application/$file_extension" --data-binary "@$release_file_path" "https://uploads.github.com/repos/$repo_path/releases/$release_id/assets?name=$release_file_name" | jq -r '.id')
     if [ ! "$release_asset" == "" ] && [ ! "$release_asset" == "null" ]; then echo "$release_asset"; else echo ""; fi
 }
 
 function github_release_asset_delete(){ # github_release_asset_delete <repo-path> <release-asset-id>
     local repo_path="$1"
     local release_asset_id="$2"
-    local res
+    local res=""
     local return_code
     res=$(curl -s -k -o /dev/null -w "%{http_code}" -X DELETE -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" "https://api.github.com/repos/$repo_path/releases/assets/$release_asset_id")
     return_code=$?
@@ -267,14 +288,18 @@ function github_release_asset_delete(){ # github_release_asset_delete <repo-path
 function git_branch_exists(){ # git_branch_exists <repo-path> <branch-name>
     local repo_path="$1"
     local branch_name="$2"
-    local branch_found=`git -C "$repo_path" ls-remote --heads origin "$branch_name"`
+    local branch_found=""
+
+    branch_found=$(git -C "$repo_path" ls-remote --heads origin "$branch_name")
     if [ -n "$branch_found" ]; then echo 1; else echo 0; fi
 }
 
 function git_commit_exists(){ #git_commit_exists <repo-path> <commit-message>
     local repo_path="$1"
     local commit_message="$2"
-    local commits_found=`git -C "$repo_path" log --all --grep="$commit_message" | grep commit`
+    local commits_found=""
+
+    commits_found=$(git -C "$repo_path" log --all --grep="$commit_message" | grep commit)
     if [ -n "$commits_found" ]; then echo 1; else echo 0; fi
 }
 
@@ -283,11 +308,15 @@ function git_create_pr(){ # git_create_pr <branch> <title>
     local pr_title="$2"
     local pr_target="$3"
     local pr_body="\`\`\`\r\n"
-    while read -r line; do pr_body+=$line"\r\n"; done < "$AR_TOOLS/esp32-arduino-libs/versions.txt"
+    local pr_data=""
+    local git_create_pr_res=""
+    local done_pr=""
+
+    while IFS= read -r line; do pr_body+="$line\r\n"; done < "$AR_TOOLS/esp32-arduino-libs/versions.txt"
     pr_body+="\`\`\`\r\n"
-    local pr_data="{\"title\": \"$pr_title\", \"body\": \"$pr_body\", \"head\": \"$AR_USER:$pr_branch\", \"base\": \"$pr_target\"}"
-    git_create_pr_res=`echo "$pr_data" | curl -k -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" --data @- "https://api.github.com/repos/$AR_REPO/pulls"`
-    local done_pr=`echo "$git_create_pr_res" | jq -r '.title'`
+    pr_data="{\"title\": \"$pr_title\", \"body\": \"$pr_body\", \"head\": \"$AR_USER:$pr_branch\", \"base\": \"$pr_target\"}"
+    git_create_pr_res=$(echo "$pr_data" | curl -k -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" --data @- "https://api.github.com/repos/$AR_REPO/pulls")
+    done_pr=$(echo "$git_create_pr_res" | jq -r '.title')
     if [ ! "$done_pr" == "" ] && [ ! "$done_pr" == "null" ]; then echo 1; else echo 0; fi
 }
 
