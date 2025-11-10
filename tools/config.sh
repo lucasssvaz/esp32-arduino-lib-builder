@@ -175,29 +175,35 @@ function github_pr_exists(){ # github_pr_exists <repo-path> <branch-name>
     if [ ! "$pr_num" == "" ] && [ ! "$pr_num" == "null" ]; then echo 1; else echo 0; fi
 }
 
-function github_release_id(){ # github_release_id <repo-path> <release-tag>
+function github_release_id() { # github_release_id <repo-path> <release-tag>
     local repo_path="$1"
     local release_tag="$2"
     local page=1
     local release_id=""
 
     while [[ "$page" -le 3 ]]; do
-        local response=`curl -s -k -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/vnd.github.v3.raw+json" "https://api.github.com/repos/$repo_path/releases?per_page=100&page=$page"`
+        local response
+        response=$(curl -sf -H "Authorization: token $GITHUB_TOKEN" \
+                          -H "Accept: application/vnd.github.v3.raw+json" \
+                          "https://api.github.com/repos/$repo_path/releases?per_page=100&page=$page") || {
+            echo "Failed to fetch releases from GitHub for $repo_path" >&2
+            exit 1
+        }
 
-        if [[ -z "$response" || "$response" == "[]" ]]; then
-            break
-        fi
+        # stop if empty or no releases
+        [[ -z "$response" || "$response" == "[]" ]] && break
 
-        local release=`echo "$response" | jq --arg release_tag "$release_tag" -r '.[] | select(.tag_name == $release_tag) | .id'`
-        if [ ! "$release" == "" ] && [ ! "$release" == "null" ]; then
-            release_id=$release
-            break
+        release_id=$(echo "$response" | jq --arg tag "$release_tag" -r '.[] | select(.tag_name == $tag) | .id')
+        if [[ -n "$release_id" && "$release_id" != "null" ]]; then
+            echo "$release_id"
+            return 0
         fi
 
         page=$((page+1))
     done
 
-    echo "$release_id"
+    echo "Release '$release_tag' not found in $repo_path" >&2
+    exit 1
 }
 
 function github_release_asset_id(){ # github_release_asset_id <repo-path> <release-id> <release-file>
