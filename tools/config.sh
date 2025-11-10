@@ -244,10 +244,6 @@ function github_release_asset_id(){ # github_release_asset_id <repo-path> <relea
             break
         fi
 
-        # Optional debug
-        echo "DEBUG: Raw response for release assets:" >&2
-        echo "$response" | head -n 20 >&2
-
         release_asset=$(echo "$response" | jq --arg release_file "$release_file" -r '.[] | select(.name == $release_file) | .id')
         if [ ! "$release_asset" == "" ] && [ ! "$release_asset" == "null" ]; then
             asset_id=$release_asset
