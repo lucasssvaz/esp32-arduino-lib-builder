@@ -55,6 +55,11 @@ echo "Latest IDF commit in $AR_BRANCH of $AR_REPO: $LATEST_LIBS_IDF"
 AR_HAS_COMMIT=`if [ "$LATEST_LIBS_IDF" == "$IDF_COMMIT" ]; then echo "1"; else echo "0"; fi`
 AR_HAS_PR=`github_pr_exists "$AR_REPO" "$AR_NEW_BRANCH_NAME"`
 
+curl -sf -H "Authorization: token $GITHUB_TOKEN" \
+     -H "Accept: application/vnd.github.v3+json" \
+     "https://api.github.com/repos/$AR_LIBS_REPO/releases?per_page=1" | head -n 20
+
+
 LIBS_RELEASE_ID=`github_release_id "$AR_LIBS_REPO" "$LIBS_RELEASE_TAG" 2>&1 >/dev/null`
 LIBS_HAS_RELEASE=`if [ -n "$LIBS_RELEASE_ID" ]; then echo "1"; else echo "0"; fi`
 
