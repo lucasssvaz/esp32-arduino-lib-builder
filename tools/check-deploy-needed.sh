@@ -1,5 +1,7 @@
 #/bin/bash
 
+exec 3>&1 1>&2
+
 source ./tools/config.sh
 
 IDF_COMMIT=`github_last_commit "$IDF_REPO" "$IDF_BRANCH"`
