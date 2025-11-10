@@ -1,7 +1,7 @@
 #!/bin/bash
 # shellcheck disable=SC2034
 
-DEBUG() { echo "DEBUG: $*" >&2; }
+DEBUG() { echo -e "\nDEBUG: $*\n" >&2; }
 
 if [ -z "$IDF_PATH" ]; then
     export IDF_PATH="$PWD/esp-idf"
