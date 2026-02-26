@@ -26,39 +26,9 @@ if [ -z "$IDF_COMMIT" ]; then
 	exit 1
 fi
 
-if [ -z "$GITHUB_HEAD_REF" ]; then
-	current_branch=$(git branch --show-current)
-else
-	current_branch="$GITHUB_HEAD_REF"
-fi
+set_ar_source_branch "github_branch_exists" "$AR_REPO" "$IDF_REF"
 
-if [ -z "$AR_SOURCE_BRANCH" ]; then
-	AR_SOURCE_BRANCH="master"
-	if [[ "$current_branch" != "master" && $(github_branch_exists "$AR_REPO" "$current_branch") == "1" ]]; then
-		AR_SOURCE_BRANCH="$current_branch"
-	else
-		if [ -n "$IDF_COMMIT" ]; then
-			AR_SOURCE_BRANCH_CANDIDATE="idf-$IDF_COMMIT"
-		elif [ -n "$IDF_TAG" ]; then
-			AR_SOURCE_BRANCH_CANDIDATE="idf-$IDF_TAG"
-		else
-			AR_SOURCE_BRANCH_CANDIDATE="idf-$IDF_BRANCH"
-		fi
-		has_ar_branch=$(github_branch_exists "$AR_REPO" "$AR_SOURCE_BRANCH_CANDIDATE")
-		if [ "$has_ar_branch" == "1" ]; then
-			AR_SOURCE_BRANCH="$AR_SOURCE_BRANCH_CANDIDATE"
-		else
-			has_ar_branch=$(github_branch_exists "$AR_REPO" "$AR_PR_TARGET_BRANCH")
-			if [ "$has_ar_branch" == "1" ]; then
-				AR_SOURCE_BRANCH="$AR_PR_TARGET_BRANCH"
-			fi
-		fi
-	fi
-fi
-
-echo "AR_SOURCE_BRANCH_CANDIDATE: $AR_SOURCE_BRANCH_CANDIDATE"
 echo "AR_PR_TARGET_BRANCH: $AR_PR_TARGET_BRANCH"
-echo "has_ar_branch: $has_ar_branch"
 echo "AR_SOURCE_BRANCH: $AR_SOURCE_BRANCH"
 
 # format new branch name and pr title based on IDF_REF (tag, commit, or branch)
