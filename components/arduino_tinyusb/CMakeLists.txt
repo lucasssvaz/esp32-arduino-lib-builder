@@ -27,6 +27,12 @@ if(CONFIG_TINYUSB_ENABLED)
         "-DCFG_TUSB_DEBUG=${CONFIG_TINYUSB_DEBUG_LEVEL}"
         "-Wno-type-limits" # needed for the vanila tinyusb with turned off classes
     )
+  elseif(IDF_TARGET STREQUAL "esp32h4")
+    set(compile_options
+        "-DCFG_TUSB_MCU=OPT_MCU_ESP32H4"
+        "-DCFG_TUSB_DEBUG=${CONFIG_TINYUSB_DEBUG_LEVEL}"
+        "-Wno-type-limits" # needed for the vanila tinyusb with turned off classes
+    )
   endif()
 
   set(srcs
