@@ -17,3 +17,11 @@ dependencies:
     require: public
     rules:
       - if: "idf_version >= 5.4 && target in [esp32s3, esp32p4, esp32s31]"
+  # LC3 codec for the LE Audio turnkey data plane (BLEAudioPlayer/Recorder).
+  # Only the LE-Audio-capable targets pull it in; the BLE library gates the
+  # pipeline on __has_include(<esp_audio_dec.h>) so other targets are unaffected.
+  espressif/esp_audio_codec:
+    version: "^2.4.0"
+    require: public
+    rules:
+      - if: "target in [esp32s31, esp32h4]"
